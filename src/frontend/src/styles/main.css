@@ -364,7 +364,17 @@ nav {
   padding-left: 1rem;
 }
 
-.deviceItemRemove {
+/* .deviceItemRemove {
+  border-radius: 2px;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+} */
+
+.deviceItemIcon {
   border-radius: 2px;
   padding: 0;
   width: 40px;

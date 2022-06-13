@@ -178,10 +178,30 @@ const pageContent = (userNumber: bigint, devices: DeviceData[]) => html`
   ${footer}
 `;
 
-const deviceListItem = (alias: string) => html`
-  <div class="deviceItemAlias">${alias}</div>
-  <button type="button" class="deviceItemRemove">${closeIcon}</button>
-`;
+const lockButton = (device: DeviceData) => {
+  if (device.alias !== 'Recovery phrase') {
+    return html``;
+  }
+
+  if ('protected' in device.protection_type) {
+    return html`<button id="device-${device.pubkey.join('')}-unprotect" type="button" class="deviceItemIcon">Locked</button>`;
+
+  }
+
+  if ('unprotected' in device.protection_type) {
+    return html`<button id="device-${device.pubkey.join('')}-protect" type="button" class="deviceItemIcon">Unlocked</button>`;
+  }
+
+  return html``;
+};
+
+const deviceListItem = (device: DeviceData) => {
+  return html`
+    <div class="deviceItemAlias">${device.alias}</div>
+    ${lockButton(device)}
+    <button id="device-${device.pubkey.join('')}-remove" type="button" class="deviceItemIcon">${closeIcon}</button>
+  `;
+};
 
 const recoveryNag = () => html`
   <div class="warnBox">
@@ -279,14 +299,26 @@ const renderDevices = async (
   devices.forEach((device) => {
     const identityElement = document.createElement("li");
     identityElement.className = "deviceItem";
-    render(deviceListItem(device.alias), identityElement);
+    render(deviceListItem(device), identityElement);
     const isOnlyDevice = devices.length < 2;
     bindRemoveListener(
       userNumber,
       connection,
       identityElement,
-      device.pubkey,
+      device,
       isOnlyDevice
+    );
+    bindProtectListener(
+      userNumber,
+      connection,
+      identityElement,
+      device
+    );
+    bindUnprotectListener(
+      userNumber,
+      connection,
+      identityElement,
+      device
     );
     hasOwnProperty(device.purpose, "recovery")
       ? recoveryList.appendChild(identityElement)
@@ -313,12 +345,12 @@ const bindRemoveListener = (
   userNumber: bigint,
   connection: IIConnection,
   listItem: HTMLElement,
-  publicKey: PublicKey,
+  device: DeviceData,
   isOnlyDevice: boolean
 ) => {
-  const button = listItem.querySelector("button") as HTMLButtonElement;
+  const button = listItem.querySelector(`#device-${device.pubkey.join('')}-remove`) as HTMLButtonElement;
   button.onclick = async () => {
-    const pubKey: DerEncodedPublicKey = new Uint8Array(publicKey)
+    const pubKey: DerEncodedPublicKey = new Uint8Array(device.pubkey)
       .buffer as DerEncodedPublicKey;
     const sameDevice = bufferEqual(
       connection.identity.getPublicKey().toDer(),
@@ -340,7 +372,7 @@ const bindRemoveListener = (
 
     // Otherwise, remove identity
     try {
-      await withLoader(() => connection.remove(userNumber, publicKey));
+      await withLoader(() => connection.remove(userNumber, device.pubkey));
       if (sameDevice) {
         localStorage.clear();
         location.reload();
@@ -351,6 +383,56 @@ const bindRemoveListener = (
         title: "Failed to remove the device",
         message:
           "An unexpected error occured when trying to remove the device. Please try again",
+        detail: unknownToString(err, "Unknown error"),
+        primaryButton: "Back to Manage",
+      });
+      renderManage(userNumber, connection);
+    }
+  };
+};
+
+const bindProtectListener = (
+  userNumber: bigint,
+  connection: IIConnection,
+  listItem: HTMLElement,
+  device: DeviceData
+) => {
+  const button = listItem.querySelector(`#device-${device.pubkey.join('')}-protect`) as HTMLButtonElement;
+  button.onclick = async () => {
+    try {
+      await withLoader(() => connection.protect(userNumber, device.pubkey));
+      renderManage(userNumber, connection);
+    } catch (err: unknown) {
+      // TODO do we want better error management?
+      await displayError({
+        title: "Failed to protect the device",
+        message:
+          "An unexpected error occured when trying to protect the device. Please try again",
+        detail: unknownToString(err, "Unknown error"),
+        primaryButton: "Back to Manage",
+      });
+      renderManage(userNumber, connection);
+    }
+  };
+};
+
+const bindUnprotectListener = (
+  userNumber: bigint,
+  connection: IIConnection,
+  listItem: HTMLElement,
+  device: DeviceData
+) => {
+  const button = listItem.querySelector(`#device-${device.pubkey.join('')}-unprotect`) as HTMLButtonElement;
+  button.onclick = async () => {
+    try {
+      await withLoader(() => connection.unprotect(userNumber, device.pubkey));
+      renderManage(userNumber, connection);
+    } catch (err: unknown) {
+      // TODO do we want better error management?
+      await displayError({
+        title: "Failed to protect the device",
+        message:
+          "An unexpected error occured when trying to unprotect the device. Please try again",
         detail: unknownToString(err, "Unknown error"),
         primaryButton: "Back to Manage",
       });

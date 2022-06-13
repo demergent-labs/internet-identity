@@ -151,6 +151,7 @@ export class IIConnection {
           credential_id: [credential_id],
           key_type: { unknown: null },
           purpose: { authentication: null },
+          protection_type: { unprotected: null },
         },
         challengeResult
       );
@@ -320,6 +321,7 @@ export class IIConnection {
         : [],
       key_type: keyType,
       purpose,
+      protection_type: { unprotected: null },
     });
   }
 
@@ -413,6 +415,7 @@ export class IIConnection {
         : [],
       key_type: keyType,
       purpose,
+      protection_type: { unprotected: null },
     });
   };
 
@@ -423,6 +426,22 @@ export class IIConnection {
     const actor = await this.getActor();
     await actor.remove(userNumber, publicKey);
   };
+
+  protect = async (
+    userNumber: UserNumber,
+    publicKey: PublicKey
+  ): Promise<void> => {
+    const actor = await this.getActor();
+    await actor.protect(userNumber, publicKey);
+  }
+
+  unprotect = async (
+    userNumber: UserNumber,
+    publicKey: PublicKey
+  ): Promise<void> => {
+    const actor = await this.getActor();
+    await actor.unprotect(userNumber, publicKey);
+  }
 
   getPrincipal = async (
     userNumber: UserNumber,
